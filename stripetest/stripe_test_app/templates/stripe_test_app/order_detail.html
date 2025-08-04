@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детали заказа #{{ order.id }}</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .order-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .order-status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .paid {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .unpaid {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .items-list {
+            margin-top: 20px;
+        }
+        .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .item-info {
+            flex: 2;
+        }
+        .item-quantity {
+            flex: 1;
+            text-align: center;
+        }
+        .item-price {
+            flex: 1;
+            text-align: right;
+        }
+        .total {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: right;
+        }
+        .pay-button {
+            display: block;
+            width: 200px;
+            margin: 30px auto 0;
+            padding: 12px;
+            background-color: #6772e5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+        .pay-button:hover {
+            background-color: #5469d4;
+        }
+        .pay-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="order-container">
+        <div class="order-header">
+            <h1>Заказ #{{ order_id }}</h1>
+            <div class="order-status {% if order.paid %}paid{% else %}unpaid{% endif %}">
+                {% if order.paid %}Оплачен{% else %}Не оплачен{% endif %}
+            </div>
+        </div>
+
+        <div class="items-list">
+            {% for order_item in order.items %}
+            <div class="item">
+                <div class="item-info">
+                    <h3>{{ order_item.item.title }}</h3>
+                    <p>{{ order_item.item.description }}</p>
+                </div>
+                <div class="item-quantity">
+                    {{ order_item.quantity }} шт.
+                </div>
+                <div class="item-price">
+                    {{ order_item.item.price|floatformat:2 }} ₽
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="total">
+            Итого: {{ order_total|floatformat:2 }} ₽
+        </div>
+
+        {% if not order.paid %}
+        <button id="pay-button" class="pay-button">Оплатить заказ</button>
+        <div id="loading" class="loading">Перенаправляем на страницу оплаты...</div>
+        <div id="error-message" class="error"></div>
+        {% endif %}
+    </div>
+
+    {% if not order.paid %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const payButton = document.getElementById('pay-button');
+            const loadingIndicator = document.getElementById('loading');
+            const errorDisplay = document.getElementById('error-message');
+            
+            payButton.addEventListener('click', async function() {
+                payButton.disabled = true;
+                loadingIndicator.style.display = 'block';
+                errorDisplay.textContent = '';
+                
+                try {
+                    // 1. Получаем session_id от бэкенда
+                    const response = await fetch(`/buy/orders/{{ order_id }}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    // Проверяем, что ответ - JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        throw new Error(`Ожидался JSON, получено: ${text.substring(0, 100)}...`);
+                    }
+
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Ошибка при создании платежа');
+                    }
+                    
+                    // 2. Перенаправляем в Stripe Checkout
+                    const stripe = Stripe('{{ public_key }}');
+                    const { error } = await stripe.redirectToCheckout({
+                        sessionId: data.session_id
+                    });
+                    
+                    if (error) {
+                        throw error;
+                    }
+                } catch (error) {
+                    console.error('Ошибка:', error);
+                    errorDisplay.textContent = `Ошибка оплаты: ${error.message}`;
+                    payButton.disabled = false;
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ item.title }} - Purchase</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        .item-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        .item-title {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .item-description {
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            color: #666;
+        }
+        .item-price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 2rem;
+            color: #2c3e50;
+        }
+        .buy-button {
+            background-color: #6772e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .buy-button:hover {
+            background-color: #5469d4;
+        }
+        .loading {
+            display: none;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="item-container">
+        <h1 class="item-title">{{ item.title }}</h1>
+        <p class="item-description">{{ item.description }}</p>
+        <div class="item-price">${{ item.price }}</div>
+        
+        <button id="buy-button" class="buy-button">Buy Now</button>
+        <div id="loading" class="loading">Processing payment...</div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const buyButton = document.getElementById('buy-button');
+            const loadingIndicator = document.getElementById('loading');
+            
+            buyButton.addEventListener('click', async function() {
+                // Show loading indicator
+                buyButton.disabled = true;
+                loadingIndicator.style.display = 'block';
+                
+                try {
+                    // 1. Get Stripe session ID from your backend
+                    const response = await fetch('/buy/items/{{ item_id }}');
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Failed to create payment session');
+                    }
+                    
+                    // 2. Redirect to Stripe Checkout
+                    const stripe = Stripe("{{ public_key }}"); 
+                    const { error } = await stripe.redirectToCheckout({
+                        sessionId: data.session_id
+                    });
+                    
+                    if (error) {
+                        throw error;
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Payment failed: ' + error.message);
+                    buyButton.disabled = false;
+                    loadingIndicator.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
