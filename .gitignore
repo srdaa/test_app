@@ -1,4 +1,3 @@
-/*
-!/stripetest/ 
-!.gitignore   
+.env
 __pycache__
+.vscode
