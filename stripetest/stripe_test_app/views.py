@@ -51,8 +51,8 @@ class BuyOrderView(APIView):
         session = stripe.checkout.Session.create(
             line_items=line_items,
             mode="payment",
-            success_url= f'http://localhost:4000/paid/{order_id}',
-            cancel_url= 'http://localhost:4000/'
+            success_url= f'https://srdaa.pythonanywhere.com/paid/{order_id}?session_id={{CHECKOUT_SESSION_ID}}',
+            cancel_url= 'http://srdaa.pythonanywhere.com/'
             
         )
         
@@ -61,11 +61,34 @@ class BuyOrderView(APIView):
         
 class OrderPaidView(APIView):
     def get(self, request, order_id):
+        session_id = request.query_params.get('session_id')
         order = Order.objects.get(pk=order_id)
-        order.paid = True
-        order.save()
-        return redirect('http://localhost:4000/')
+        
+        if not session_id:
+            return Response(
+                {"error": "Missing session_id parameter"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            
+            print("STATUS", session.payment_status)
+            if session.payment_status != 'paid':
+                return Response(
+                    {"error": "Payment verification failed"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
+            if not order.paid:
+                order.paid = True
+                order.save()
+                return redirect('/')
+            
+        except stripe.error.StripeError:
+            return Response(
+                {"error": "Payment verification failed"},
+                status=status.HTTP_403_FORBIDDEN
+            )
 class ItemViewSet(viewsets.ViewSet):
     
     @extend_schema(request=ItemSerializer)
