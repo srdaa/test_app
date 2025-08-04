@@ -68,9 +68,9 @@ class OrderPaidView(APIView):
 
 class ItemViewSet(viewsets.ViewSet):
     
-    @extend_schema(request=ItemSerializer)
+    @extend_schema(request=ItemCreateSerializer)
     def create(self, request):
-        serializer = ItemSerializer(data=request.data)
+        serializer = ItemCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         new_item = serializer.save()

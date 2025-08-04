@@ -10,6 +10,12 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def get_price(self, obj: Item):
         return obj.price / 100
+    
+class ItemCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Item
+        fields = ['title', 'description', 'price']
 
 class OrderItemDetailSerializer(serializers.ModelSerializer):
     item = ItemSerializer()
