@@ -16,10 +16,12 @@ GET /buy/items/<id> - Возвращает session id для оплаты
 
 В админке 3 модели.
 
-Для запуска понадобится docker и docker compose. 
+Для запуска понадобится make, docker и docker compose. 
 
 make dev - запуск контейнеров
 
 make dev - down удаление контейнеров
 
 make dev-logs - логи контейнера
+
+Заранее созданы items с id 5 и 6, order с id 9 с предметами 5 и 6
