@@ -51,8 +51,8 @@ class BuyOrderView(APIView):
         session = stripe.checkout.Session.create(
             line_items=line_items,
             mode="payment",
-            success_url= f'http://paid/{order_id}',
-            cancel_url= '/'
+            success_url= f'http://localhost:8000/paid/{order_id}?session_id={{CHECKOUT_SESSION_ID}}',
+            cancel_url= 'http://localhost:8000/'
             
         )
         
@@ -72,7 +72,8 @@ class OrderPaidView(APIView):
         try:
             session = stripe.checkout.Session.retrieve(session_id)
             
-            if session.payment_status != 'paid' or session.metadata.get('order_id') != str(order_id):
+            print("STATUS", session.payment_status)
+            if session.payment_status != 'paid':
                 return Response(
                     {"error": "Payment verification failed"},
                     status=status.HTTP_403_FORBIDDEN
